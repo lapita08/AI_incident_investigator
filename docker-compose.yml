@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      DATABASE_URL: sqlite:////data/incident_investigator.db
+      SAMPLE_DATA_DIR: /app/sample-data
+      LLM_PROVIDER: mock
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/data
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      VITE_API_BASE: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:
+
