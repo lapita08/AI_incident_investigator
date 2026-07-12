@@ -1,0 +1,51 @@
+{
+  "incident": {
+    "title": "Checkout API latency and timeout spike",
+    "description": "Elevated checkout latency and downstream timeout errors during peak reporting activity.",
+    "severity": "sev2",
+    "status": "investigating",
+    "started_at": "2026-07-09T14:05:00Z",
+    "detected_at": "2026-07-09T14:12:00Z",
+    "affected_services": ["checkout-api", "orders-api", "orders-db"],
+    "customer_impact": "Some checkout attempts returned errors or took longer than 10 seconds."
+  },
+  "evidence": [
+    {
+      "evidence_type": "alert",
+      "source": "prometheus",
+      "environment": "production",
+      "raw_content": "{\"status\":\"firing\",\"labels\":{\"alertname\":\"CheckoutHighLatency\",\"service\":\"checkout-api\",\"severity\":\"page\"},\"annotations\":{\"summary\":\"p95 checkout latency above 3s\",\"observed_value\":\"8.4s\",\"threshold\":\"3s\"},\"startsAt\":\"2026-07-09T14:12:00Z\"}"
+    },
+    {
+      "evidence_type": "log",
+      "source": "loki",
+      "environment": "production",
+      "raw_content": "{\"timestamp\":\"2026-07-09T14:13:21Z\",\"level\":\"ERROR\",\"service\":\"checkout-api\",\"trace_id\":\"4cf19c5d\",\"message\":\"upstream request to orders-api timed out after 5000 ms\",\"error_code\":\"UPSTREAM_TIMEOUT\",\"latency_ms\":5012}\n{\"timestamp\":\"2026-07-09T14:14:02Z\",\"level\":\"ERROR\",\"service\":\"orders-api\",\"trace_id\":\"93aa11d0\",\"message\":\"database query timeout after 4500 ms for fingerprint select_order_items_by_cart\",\"error_code\":\"DB_TIMEOUT\",\"latency_ms\":4511}\n{\"timestamp\":\"2026-07-09T14:15:03Z\",\"level\":\"WARN\",\"service\":\"orders-api\",\"trace_id\":\"afe9912c\",\"message\":\"connection pool wait exceeded 1200 ms active=58 max=60\",\"latency_ms\":1204}\n{\"timestamp\":\"2026-07-09T14:27:41Z\",\"level\":\"INFO\",\"service\":\"reports-worker\",\"message\":\"report job tenant=acme query fingerprint monthly_revenue_export completed duration_ms=128900\"}\n{\"timestamp\":\"2026-07-09T14:31:10Z\",\"level\":\"INFO\",\"service\":\"orders-api\",\"message\":\"database latency recovered below alert threshold\"}"
+    },
+    {
+      "evidence_type": "metric",
+      "source": "prometheus",
+      "environment": "production",
+      "raw_content": "timestamp,metric_name,value,service\n2026-07-09T13:50:00Z,api_p95_latency_ms,180,checkout-api\n2026-07-09T13:55:00Z,api_p95_latency_ms,190,checkout-api\n2026-07-09T14:00:00Z,api_p95_latency_ms,210,checkout-api\n2026-07-09T14:05:00Z,api_p95_latency_ms,620,checkout-api\n2026-07-09T14:10:00Z,api_p95_latency_ms,2800,checkout-api\n2026-07-09T14:15:00Z,api_p95_latency_ms,8400,checkout-api\n2026-07-09T14:35:00Z,api_p95_latency_ms,240,checkout-api\n2026-07-09T13:50:00Z,db_query_latency_ms,120,orders-db\n2026-07-09T13:55:00Z,db_query_latency_ms,128,orders-db\n2026-07-09T14:00:00Z,db_query_latency_ms,135,orders-db\n2026-07-09T14:05:00Z,db_query_latency_ms,980,orders-db\n2026-07-09T14:10:00Z,db_query_latency_ms,2100,orders-db\n2026-07-09T14:15:00Z,db_query_latency_ms,2800,orders-db\n2026-07-09T14:35:00Z,db_query_latency_ms,155,orders-db\n2026-07-09T13:50:00Z,db_connections,31,orders-db\n2026-07-09T13:55:00Z,db_connections,30,orders-db\n2026-07-09T14:00:00Z,db_connections,34,orders-db\n2026-07-09T14:05:00Z,db_connections,52,orders-db\n2026-07-09T14:10:00Z,db_connections,59,orders-db\n2026-07-09T14:15:00Z,db_connections,60,orders-db\n2026-07-09T14:35:00Z,db_connections,36,orders-db"
+    },
+    {
+      "evidence_type": "deployment",
+      "source": "github-deployments-export",
+      "environment": "production",
+      "raw_content": "{\"deployments\":[{\"timestamp\":\"2026-07-09T13:52:00Z\",\"service\":\"checkout-api\",\"version\":\"2026.07.09.3\",\"commit_sha\":\"9f4b6aa\",\"deployment_status\":\"succeeded\",\"changed_components\":[\"payment timeout logging\"],\"author\":\"sre-demo\"}]}"
+    },
+    {
+      "evidence_type": "dependency",
+      "source": "service-catalog",
+      "environment": "production",
+      "raw_content": "{\"services\":[{\"id\":\"web\",\"name\":\"Web\"},{\"id\":\"checkout-api\",\"name\":\"Checkout API\"},{\"id\":\"orders-api\",\"name\":\"Orders API\"},{\"id\":\"orders-db\",\"name\":\"Orders Database\"},{\"id\":\"reports-worker\",\"name\":\"Reports Worker\"}],\"dependencies\":[{\"source\":\"web\",\"target\":\"checkout-api\",\"type\":\"http\"},{\"source\":\"checkout-api\",\"target\":\"orders-api\",\"type\":\"http\"},{\"source\":\"orders-api\",\"target\":\"orders-db\",\"type\":\"database\"},{\"source\":\"reports-worker\",\"target\":\"orders-db\",\"type\":\"database\"}]}"
+    },
+    {
+      "evidence_type": "runbook",
+      "source": "runbooks/db-latency.md",
+      "environment": "production",
+      "raw_content": "# Database latency runbook\n\n## Triage\nCheck p95 query latency, connection pool saturation, wait events, and top query fingerprints for the incident window.\n\n## Safe diagnostics\nPrefer read-only database views and application metrics. Do not kill sessions until the incident commander approves.\n\n## Reporting workload mitigation\nIf reports-worker is saturating the database, pause new report generation or lower concurrency. Validate that db_query_latency_ms and checkout-api p95 latency recover before declaring mitigation successful."
+    }
+  ]
+}
+
