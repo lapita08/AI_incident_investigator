@@ -1,7 +1,5 @@
 # AI Incident Investigator
 
-[![CI](https://github.com/lapita08/ai-incident-investigator/actions/workflows/ci.yml/badge.svg)](https://github.com/lapita08/ai-incident-investigator/actions/workflows/ci.yml)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 AI Incident Investigator is a local web app for SREs and platform teams.
 
